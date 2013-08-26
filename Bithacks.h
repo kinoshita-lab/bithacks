@@ -133,26 +133,30 @@ int sign(const Type v)
  Manfred Weis suggested I add this entry on November 26, 2009.
 */
 template < typename Type >
-bool hasOppsiteSigns(const Type a, const int b)
+bool haveOppsiteSigns(const Type a, const int b)
 {
 	return ((a ^ b) < 0);
 }
-}
-#if 0
-Compute the integer absolute value (abs) without branching
-
-int v;           // we want to find the absolute value of v
-unsigned int r;  // the result goes here
-int const mask = v >> sizeof(int) * CHAR_BIT - 1;
-
-r = (v + mask) ^ mask;
-Patented variation:
-r = (v ^ mask) - mask;
-Some CPUs don't have an integer absolute value instruction (or the compiler fails to use them). On machines where branching is expensive, the above expression can be faster than the obvious approach, r = (v < 0) ? -(unsigned)v : v, even though the number of operations is the same.
-On March 7, 2003, Angus Duggan pointed out that the 1989 ANSI C specification leaves the result of signed right-shift implementation-defined, so on some systems this hack might not work. I've read that ANSI C does not require values to be represented as two's complement, so it may not work for that reason as well (on a diminishingly small number of old machines that still use one's complement). On March 14, 2004, Keith H. Duggar sent me the patented variation above; it is superior to the one I initially came up with, r=(+1|(v>>(sizeof(int)*CHAR_BIT-1)))*v, because a multiply is not used. Unfortunately, this method has been patented in the USA on June 6, 2000 by Vladimir Yu Volkonsky and assigned to Sun Microsystems. On August 13, 2006, Yuriy Kaminskiy told me that the patent is likely invalid because the method was published well before the patent was even filed, such as in How to Optimize for the Pentium Processor by Agner Fog, dated November, 9, 1996. Yuriy also mentioned that this document was translated to Russian in 1997, which Vladimir could have read. Moreover, the Internet Archive also has an old link to it. On January 30, 2007, Peter Kankowski shared with me an abs version he discovered that was inspired by Microsoft's Visual C++ compiler output. It is featured here as the primary solution. On December 6, 2007, Hai Jin complained that the result was signed, so when computing the abs of the most negative value, it was still negative. On April 15, 2008 Andrew Shapira pointed out that the obvious approach could overflow, as it lacked an (unsigned) cast then; for maximum portability he suggested (v < 0) ? (1 + ((unsigned)(-1-v))) : (unsigned)v. But citing the ISO C99 spec on July 9, 2008, Vincent Lefèvre convinced me to remove it becasue even on non-2s-complement machines -(unsigned)v will do the right thing. The evaluation of -(unsigned)v first converts the negative value of v to an unsigned by adding 2**N, yielding a 2s complement representation of v's value that I'll call U. Then, U is negated, giving the desired result, -U = 0 - U = 2**N - U = 2**N - (v+2**N) = -v = abs(v).
-*/
 
 
+
+/**
+ Compute the integer absolute value (abs) without branching
+
+ int v;           // we want to find the absolute value of v
+ unsigned int r;  // the result goes here
+ int const mask = v >> sizeof(int) * CHAR_BIT - 1;
+
+ r = (v + mask) ^ mask;
+ Patented variation:
+ r = (v ^ mask) - mask;
+ Some CPUs don't have an integer absolute value instruction (or the compiler fails to use them). On machines where branching is expensive, the above expression can be faster than the obvious approach, r = (v < 0) ? -(unsigned)v : v, even though the number of operations is the same.
+ On March 7, 2003, Angus Duggan pointed out that the 1989 ANSI C specification leaves the result of signed right-shift implementation-defined, so on some systems this hack might not work. I've read that ANSI C does not require values to be represented as two's complement, so it may not work for that reason as well (on a diminishingly small number of old machines that still use one's complement). On March 14, 2004, Keith H. Duggar sent me the patented variation above; it is superior to the one I initially came up with, r=(+1|(v>>(sizeof(int)*CHAR_BIT-1)))*v, because a multiply is not used. Unfortunately, this method has been patented in the USA on June 6, 2000 by Vladimir Yu Volkonsky and assigned to Sun Microsystems. On August 13, 2006, Yuriy Kaminskiy told me that the patent is likely invalid because the method was published well before the patent was even filed, such as in How to Optimize for the Pentium Processor by Agner Fog, dated November, 9, 1996. Yuriy also mentioned that this document was translated to Russian in 1997, which Vladimir could have read. Moreover, the Internet Archive also has an old link to it. On January 30, 2007, Peter Kankowski shared with me an abs version he discovered that was inspired by Microsoft's Visual C++ compiler output. It is featured here as the primary solution. On December 6, 2007, Hai Jin complained that the result was signed, so when computing the abs of the most negative value, it was still negative. On April 15, 2008 Andrew Shapira pointed out that the obvious approach could overflow, as it lacked an (unsigned) cast then; for maximum portability he suggested (v < 0) ? (1 + ((unsigned)(-1-v))) : (unsigned)v. But citing the ISO C99 spec on July 9, 2008, Vincent Lefèvre convinced me to remove it becasue even on non-2s-complement machines -(unsigned)v will do the right thing. The evaluation of -(unsigned)v first converts the negative value of v to an unsigned by adding 2**N, yielding a 2s complement representation of v's value that I'll call U. Then, U is negated, giving the desired result, -U = 0 - U = 2**N - U = 2**N - (v+2**N) = -v = abs(v).
+ */
+unsigned int abs(const int v);
+
+
+/*
 Compute the minimum (min) or maximum (max) of two integers without branching
 
 int x;  // we want to find the minimum of x and y
@@ -171,6 +175,16 @@ r = y + ((x - y) & ((x - y) >> (sizeof(int) * CHAR_BIT - 1))); // min(x, y)
 r = x - ((x - y) & ((x - y) >> (sizeof(int) * CHAR_BIT - 1))); // max(x, y)
 Note that the 1989 ANSI C specification doesn't specify the result of signed right-shift, so these aren't portable. If exceptions are thrown on overflows, then the values of x and y should be unsigned or cast to unsigned for the subtractions to avoid unnecessarily throwing an exception, however the right-shift needs a signed operand to produce all one bits when negative, so cast to signed there.
 On March 7, 2003, Angus Duggan pointed out the right-shift portability issue. On May 3, 2005, Randal E. Bryant alerted me to the need for the precondition, INT_MIN <= x - y <= INT_MAX, and suggested the non-quick and dirty version as a fix. Both of these issues concern only the quick and dirty version. Nigel Horspoon observed on July 6, 2005 that gcc produced the same code on a Pentium as the obvious solution because of how it evaluates (x < y). On July 9, 2008 Vincent Lefèvre pointed out the potential for overflow exceptions with subtractions in r = y + ((x - y) & -(x < y)), which was the previous version. Timothy B. Terriberry suggested using xor rather than add and subract to avoid casting and the risk of overflows on June 2, 2009.
+*/
+int min(const int x, const int y);
+int max(const int x, const int y);
+
+int min_quick_dirty(const int x, const int y);
+int max_quick_dirty(const int x, const int y);
+
+}
+#if 0
+
 
 Determining if an integer is a power of 2
 
